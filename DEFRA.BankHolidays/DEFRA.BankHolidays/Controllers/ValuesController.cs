@@ -43,6 +43,13 @@ namespace DEFRA.BankHolidays.Controllers
             return Ok(GetHolidays());
         }
 
+        // Web API's default route was api/{controller}/{id}, so existing clients call e.g. api/Values/workingdays?start=..&end=..
+        [HttpGet("{id}")]
+        [ApiExplorerSettings(IgnoreApi = true)]
+        public IActionResult GetWithLegacyId(string id, DateTime? date = null, DateTime? start = null, DateTime? end = null, bool includeFirstDate = false)
+        {
+            return Get(date, start, end, includeFirstDate);
+        }
         [NonAction]
         public Holidays GetHolidays()
         {
