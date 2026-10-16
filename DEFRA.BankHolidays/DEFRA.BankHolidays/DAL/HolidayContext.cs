@@ -1,15 +1,21 @@
-﻿using DEFRA.BankHolidays.Models;
-using System;
-using System.Collections.Generic;
+using DEFRA.BankHolidays.Models;
 using System.Data.Entity;
 using System.Data.Entity.ModelConfiguration.Conventions;
-using System.Linq;
-using System.Web;
 
 namespace DEFRA.BankHolidays.DAL
 {
-    public class HolidayContext:DbContext
+    [DbConfigurationType(typeof(HolidayDbConfiguration))]
+    public class HolidayContext : DbContext
     {
+        // Required by DbMigrator, which creates the context itself; the migration configuration supplies the real connection.
+        public HolidayContext() : base("HolidayContext")
+        {
+        }
+
+        public HolidayContext(string nameOrConnectionString) : base(nameOrConnectionString)
+        {
+        }
+
         public virtual DbSet<Holidays> Holidays { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)

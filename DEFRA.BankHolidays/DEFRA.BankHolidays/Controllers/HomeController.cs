@@ -1,30 +1,24 @@
-﻿using DEFRA.BankHolidays.DAL;
+using DEFRA.BankHolidays.DAL;
 using DEFRA.BankHolidays.Models;
+using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Web;
-using System.Web.Mvc;
 
 namespace DEFRA.BankHolidays.Controllers
 {
     public class HomeController : Controller
     {
-        HolidayContext db;
+        private const string GovUkBankHolidaysUrl = "https://www.gov.uk/bank-holidays.json";
 
-        public HomeController()
-        {
-            db = new HolidayContext();
-        }
+        private readonly HolidayContext db;
+        private readonly IHttpClientFactory httpClientFactory;
 
-        public HomeController(HolidayContext context)
+        public HomeController(HolidayContext context, IHttpClientFactory httpClientFactory)
         {
             db = context;
+            this.httpClientFactory = httpClientFactory;
         }
 
-        public ActionResult Index()
+        public IActionResult Index()
         {
             ViewBag.Title = "Bank Holidays";
 
@@ -32,7 +26,7 @@ namespace DEFRA.BankHolidays.Controllers
         }
 
         [HttpPost]
-        public ActionResult Refresh(string data)
+        public IActionResult Refresh(string data)
         {
             try
             {
@@ -46,14 +40,18 @@ namespace DEFRA.BankHolidays.Controllers
         }
 
         [HttpPost]
-        public ActionResult Update()
+        public async Task<IActionResult> Update()
         {
-            using (WebClient client = new WebClient())
-            {
-                Update(client.DownloadString("https://www.gov.uk/bank-holidays.json"));
-            }
+            var client = httpClientFactory.CreateClient();
 
-            return new HttpStatusCodeResult(200);
+            Update(await client.GetStringAsync(GovUkBankHolidaysUrl));
+
+            return StatusCode(200);
+        }
+
+        public IActionResult Error()
+        {
+            return View();
         }
 
         private void Update(string data)

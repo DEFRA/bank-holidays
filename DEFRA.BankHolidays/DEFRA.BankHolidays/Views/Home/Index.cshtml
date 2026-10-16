@@ -1,4 +1,4 @@
-﻿<div class="jumbotron">
+<div class="jumbotron">
     <h1>Bank Holiday Service</h1>
 </div>
 
@@ -16,7 +16,7 @@
         <p>
             View API end point details and examples.  External applications can access bank holiday information from all of the United Kingdom in Json format.
         </p>
-        <p>@Html.ActionLink("Details", "Index", "Help", new { area = "" }, new { @class = "btn btn-primary" })</p>
+        <p><a href="~/swagger" class="btn btn-primary">Details</a></p>
     </div>
 </div>
 
@@ -45,7 +45,7 @@
 
             $.ajax({
                 type: "POST",
-                url: "/Home/Refresh",                
+                url: "@Url.Action("Refresh", "Home")",                
                 data: { data: data },
                 cache: false,
                 success: function (response) {

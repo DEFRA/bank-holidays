@@ -2,6 +2,7 @@ namespace DEFRA.BankHolidays.Migrations
 {
     using System;
     using System.Data.Entity;
+    using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Migrations;
     using System.Linq;
 
@@ -10,6 +11,11 @@ namespace DEFRA.BankHolidays.Migrations
         public Configuration()
         {
             AutomaticMigrationsEnabled = false;
+        }
+
+        public Configuration(string connectionString) : this()
+        {
+            TargetDatabase = new DbConnectionInfo(connectionString, "System.Data.SqlClient");
         }
 
         protected override void Seed(DEFRA.BankHolidays.DAL.HolidayContext context)
@@ -29,3 +35,4 @@ namespace DEFRA.BankHolidays.Migrations
         }
     }
 }
+
