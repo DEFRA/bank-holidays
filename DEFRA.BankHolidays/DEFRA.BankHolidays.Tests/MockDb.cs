@@ -25,11 +25,18 @@ namespace DEFRA.BankHolidays.Tests
             return set;
         }
 
-        public static Mock<HolidayContext> CreateContext(Mock<DbSet<Holidays>> holidays)
+        public static Mock<HolidayContext> CreateContext(Mock<DbSet<Holidays>> holidays, List<Holidays> data = null)
         {
             // The connection string is never used: DbContext connects lazily and every member the tests touch is mocked.
             var context = new Mock<HolidayContext>("Data Source=unused");
             context.Setup(x => x.Holidays).Returns(holidays.Object);
+
+            if (data != null)
+            {
+                // Mirrors HolidayContext.ReplaceHolidays: all existing data is replaced by the new data.
+                context.Setup(x => x.ReplaceHolidays(It.IsAny<Holidays>()))
+                       .Callback<Holidays>(replacement => { data.Clear(); data.Add(replacement); });
+            }
 
             return context;
         }

@@ -4,6 +4,7 @@ namespace DEFRA.BankHolidays.Migrations
     using System.Data.Entity;
     using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Migrations;
+    using System.Data.Entity.SqlServer;
     using System.Linq;
 
     internal sealed class Configuration : DbMigrationsConfiguration<DEFRA.BankHolidays.DAL.HolidayContext>
@@ -15,7 +16,7 @@ namespace DEFRA.BankHolidays.Migrations
 
         public Configuration(string connectionString) : this()
         {
-            TargetDatabase = new DbConnectionInfo(connectionString, "System.Data.SqlClient");
+            TargetDatabase = new DbConnectionInfo(connectionString, MicrosoftSqlProviderServices.ProviderInvariantName);
         }
 
         protected override void Seed(DEFRA.BankHolidays.DAL.HolidayContext context)
