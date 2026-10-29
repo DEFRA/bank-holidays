@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+# Builds DEFRA.BankHolidays for Azure Container Apps.
+# Base image pins: pin to a specific tag (not ":latest") so builds are reproducible; bump deliberately.
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0
+ARG DOTNET_RUNTIME_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra
+
+FROM $DOTNET_SDK_IMAGE AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+
+# Copy the project file first so `dotnet restore` is cached as its own layer and only reruns when
+# dependencies change, not on every source edit.
+COPY DEFRA.BankHolidays/DEFRA.BankHolidays/DEFRA.BankHolidays.csproj DEFRA.BankHolidays/DEFRA.BankHolidays/
+RUN dotnet restore DEFRA.BankHolidays/DEFRA.BankHolidays/DEFRA.BankHolidays.csproj
+
+COPY DEFRA.BankHolidays/DEFRA.BankHolidays/ DEFRA.BankHolidays/DEFRA.BankHolidays/
+WORKDIR /src/DEFRA.BankHolidays/DEFRA.BankHolidays
+# No --no-restore: the separate restore layer above can leave publish unable to see
+# transitively-restored Azure SDK packages, so let publish restore again (fast no-op if unchanged).
+RUN dotnet publish -c $BUILD_CONFIGURATION -o /app/publish \
+    /p:UseAppHost=false
+
+# Chiseled "-extra" runtime: no shell/package manager (smaller attack surface, fewer CVEs) but keeps
+# ICU + tzdata, which this app needs for its en-GB request culture (see Program.cs UseRequestLocalization).
+FROM $DOTNET_RUNTIME_IMAGE AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+
+# ASPNETCORE_HTTP_PORTS (not ASPNETCORE_URLS) is the Microsoft-recommended way to set the listen port
+# since .NET 8; ACA routes ingress to this port and it backs the /health/live and /health/ready probes.
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+
+# Chiseled images already default to a non-root user, but setting it explicitly documents the intent
+# and matches the Microsoft .NET container samples. $APP_UID is defined by the base image.
+USER $APP_UID
+
+# OCI metadata for image provenance/supply-chain scanning; no functional effect.
+LABEL org.opencontainers.image.title="DEFRA.BankHolidays" \
+      org.opencontainers.image.description="DEFRA UK bank holiday data API" \
+      org.opencontainers.image.vendor="DEFRA" \
+      org.opencontainers.image.base.name="mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra"
+
+ENTRYPOINT ["dotnet", "DEFRA.BankHolidays.dll"]

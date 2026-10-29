@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+**/TestResults/
+DEFRA.BankHolidays/DEFRA.BankHolidays.Tests/
+.git/
+.vs/
+.github/
+docs/
+reports/
+*.md
+diff_output.txt
+**/diff_output.txt
+Dockerfile
+.dockerignore
