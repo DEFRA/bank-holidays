@@ -172,7 +172,7 @@ A copy of the source before the remediation was kept at `C:\Users\v-ramasua\.cop
 |---|---|---|
 | Anonymous `POST Home/Refresh` / `Home/Update` | Allowed in every environment | Needs the `BankHolidays.Refresh` role; anonymous only in Development |
 | Invalid refresh data | `200` with the parser's error text | `400` with a generic message |
-| Home page | Has a Refresh button | No button (refresh runs as a scheduled, authenticated call) |
+| Home page | Has a Refresh button | Refresh button restored for anonymous users, with antiforgery validation and server-side feed download; scheduled/API endpoints stay authenticated |
 | Refresh | Left old child rows behind | Replaces all rows |
 | Read API (`GET api/values...`) | - | **Same responses** |
 

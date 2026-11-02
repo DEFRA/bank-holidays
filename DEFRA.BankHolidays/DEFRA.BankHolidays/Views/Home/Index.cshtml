@@ -6,10 +6,61 @@
     <div class="col-md-4">
         <h2>Holiday Data</h2>
         <p>
-            Bank holiday data is refreshed from Gov.Uk by a scheduled, authenticated process and replaces all existing
-            holiday data in the repository. Data is available as a web service.
+            Refresh bank holiday data from Gov.Uk using the button below. Refresh replaces all existing
+            holiday data in the repository. No sign-in is required. Data is available as a web service.
         </p>
+        <form id="refresh-form" asp-controller="Home" asp-action="ManualRefresh" method="post">
+            @Html.AntiForgeryToken()
+            <button id="refresh-button" type="submit" class="btn btn-primary">Refresh</button>
+        </form>
+        <p id="refresh-status" role="status" aria-live="polite"></p>
     </div>
+
+    @section scripts {
+        <script>
+            $(function () {
+                $("#refresh-form").on("submit", function (event) {
+                    event.preventDefault();
+                    var form = $(this);
+                    var button = $("#refresh-button");
+                    var status = $("#refresh-status");
+
+                    if (button.prop("disabled")) {
+                        return;
+                    }
+
+                    button.prop("disabled", true);
+                    status.text("Refreshing bank holiday data...");
+
+                    $.ajax({
+                        url: form.attr("action"),
+                        type: "POST",
+                        data: form.serialize()
+                    }).done(function () {
+                        status.text("Bank holiday data refreshed successfully.");
+                    }).fail(function (response) {
+                        var message;
+                        switch (response.status) {
+                            case 400:
+                                message = "The refresh request could not be validated. Reload the page and try again.";
+                                break;
+                            case 409:
+                                message = "A refresh is already in progress. Please try again later.";
+                                break;
+                            case 502:
+                                message = "The bank holiday source is unavailable or returned invalid data. Please try again later.";
+                                break;
+                            default:
+                                message = "Bank holiday data could not be refreshed. Please try again later.";
+                        }
+                        status.text(message);
+                    }).always(function () {
+                        button.prop("disabled", false);
+                    });
+                });
+            });
+        </script>
+    }
     <div class="col-md-4">
         <h2>API</h2>
         <p>

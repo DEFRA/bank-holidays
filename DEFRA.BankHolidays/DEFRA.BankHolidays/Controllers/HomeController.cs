@@ -70,7 +70,20 @@ namespace DEFRA.BankHolidays.Controllers
 
         [HttpPost]
         [Authorize(Policy = AuthorizationPolicies.Refresh)]
-        public async Task<IActionResult> Update(CancellationToken cancellationToken)
+        public Task<IActionResult> Update(CancellationToken cancellationToken)
+        {
+            return RefreshFromSourceAsync(cancellationToken);
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> ManualRefresh(CancellationToken cancellationToken)
+        {
+            return RefreshFromSourceAsync(cancellationToken);
+        }
+
+        private async Task<IActionResult> RefreshFromSourceAsync(CancellationToken cancellationToken)
         {
             using var lease = refreshGate.TryAcquire();
 

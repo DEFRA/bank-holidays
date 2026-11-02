@@ -84,9 +84,9 @@ builder.Services.AddSingleton<IDatabaseProbe>(_ => new SqlDatabaseProbe(connecti
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready" });
 
-// Endpoints that change data require an Entra ID access token carrying the BankHolidays.Refresh app role.
-// Reads stay anonymous. Without Entra configuration the app only starts in Development, and only when
-// anonymous writes are explicitly allowed, so a deployment cannot accidentally expose the write endpoints.
+// Scheduled/API writes require an Entra ID access token carrying the BankHolidays.Refresh app role.
+// ManualRefresh is intentionally anonymous with antiforgery validation. Without Entra configuration the app
+// only starts in Development when anonymous API writes are explicitly allowed.
 var azureAd = builder.Configuration.GetSection("AzureAd");
 var entraConfigured = !string.IsNullOrWhiteSpace(azureAd["TenantId"]) && !string.IsNullOrWhiteSpace(azureAd["ClientId"]);
 var allowAnonymousWrites = builder.Environment.IsDevelopment()

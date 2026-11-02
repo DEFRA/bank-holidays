@@ -65,7 +65,11 @@ Both require an Entra ID access token that carries the **`BankHolidays.Refresh`*
 .\Scripts\Powershell\DEFRA.BankHolidays.Update.ps1 -BaseUrl https://<host> -AccessToken <token>
 ```
 
-Without `-BaseUrl` the script keeps the previous on-premises default (`http://localhost/defra.bankholidays`). The home page no longer contains a refresh button; refresh runs from the scheduled process.
+Without `-BaseUrl` the script keeps the previous on-premises default (`http://localhost/defra.bankholidays`).
+
+The home page also provides a **Refresh** button for all users, without sign-in. It posts to `Home/ManualRefresh` with an antiforgery token and cookie. The server downloads the configured feed; this endpoint does not accept a caller-supplied dataset or source URL. It shares the timeout, error handling, refresh guard and transactional replacement logic of `Home/Update`. The page displays success or failure and disables the button while the request is pending.
+
+This is an intentional anonymous write exception: anyone who can reach the home page can trigger a full refresh. Antiforgery validation prevents cross-site form submission; it is not authentication or a restriction on who may refresh. Existing scheduled/API endpoints remain protected by Entra ID.
 
 The refresh guard only coordinates requests within one instance. Run the scheduled refresh once (not per replica).
 
@@ -75,6 +79,7 @@ The refresh guard only coordinates requests within one instance. Run the schedul
 
 - **Read endpoints** (`GET api/values...`, `/swagger`, health) are anonymous; the API contract is unchanged.
 - **Write endpoints** (`Home/Update`, `Home/Refresh`) use the `BankHolidays.Refresh` policy: a valid Entra ID access token for this API **and** the `BankHolidays.Refresh` app role.
+- **Manual refresh** (`Home/ManualRefresh`) allows anonymous POST requests with a valid antiforgery token and cookie from the home page.
 - The app **fails closed**: outside Development it will not start unless `AzureAd:TenantId` and `AzureAd:ClientId` are set. In Development it starts without them only when `Authentication:AllowAnonymousWritesInDevelopment` is `true`; that setting is ignored in every other environment.
 
 Entra ID objects that must exist (to be created by the tenant owner):
