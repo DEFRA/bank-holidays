@@ -1,44 +1,75 @@
 # syntax=docker/dockerfile:1
-# Builds DEFRA.BankHolidays for Azure Container Apps.
-# Base image pins: pin to a specific tag (not ":latest") so builds are reproducible; bump deliberately.
-ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0
-ARG DOTNET_RUNTIME_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra
+# Builds DEFRA.BankHolidays per Defra .NET container standards (github.com/DEFRA/defra-docker-dotnetcore).
+ARG PARENT_VERSION=2.1.9-dotnet10.0
 
-FROM $DOTNET_SDK_IMAGE AS build
-ARG BUILD_CONFIGURATION=Release
-WORKDIR /src
+# Development stage: SDK-based parent image used to restore, test and publish the app.
+FROM defradigital/dotnetcore-development:$PARENT_VERSION AS development
+ENV TZ="Europe/London"
+ARG PARENT_VERSION
 
-# Copy the project file first so `dotnet restore` is cached as its own layer and only reruns when
-# dependencies change, not on every source edit.
-COPY DEFRA.BankHolidays/DEFRA.BankHolidays/DEFRA.BankHolidays.csproj DEFRA.BankHolidays/DEFRA.BankHolidays/
-RUN dotnet restore DEFRA.BankHolidays/DEFRA.BankHolidays/DEFRA.BankHolidays.csproj
+# Label the development image with the parent image it extends.
+LABEL uk.gov.defra.parent-image=defradigital/dotnetcore-development:${PARENT_VERSION}
 
-COPY DEFRA.BankHolidays/DEFRA.BankHolidays/ DEFRA.BankHolidays/DEFRA.BankHolidays/
-WORKDIR /src/DEFRA.BankHolidays/DEFRA.BankHolidays
-# No --no-restore: the separate restore layer above can leave publish unable to see
-# transitively-restored Azure SDK packages, so let publish restore again (fast no-op if unchanged).
-RUN dotnet publish -c $BUILD_CONFIGURATION -o /app/publish \
-    /p:UseAppHost=false
+# Create directories for app and test files to be copied into.
+RUN mkdir -p ./DEFRA.BankHolidays/ ./DEFRA.BankHolidays.Tests/
 
-# Chiseled "-extra" runtime: no shell/package manager (smaller attack surface, fewer CVEs) but keeps
-# ICU + tzdata, which this app needs for its en-GB request culture (see Program.cs UseRequestLocalization).
-FROM $DOTNET_RUNTIME_IMAGE AS final
-WORKDIR /app
-COPY --from=build /app/publish .
+# Install test dependencies.
+COPY --chown=dotnet:dotnet DEFRA.BankHolidays/DEFRA.BankHolidays.Tests/*.csproj ./DEFRA.BankHolidays.Tests/
+RUN dotnet restore ./DEFRA.BankHolidays.Tests/DEFRA.BankHolidays.Tests.csproj
 
-# ASPNETCORE_HTTP_PORTS (not ASPNETCORE_URLS) is the Microsoft-recommended way to set the listen port
-# since .NET 8; ACA routes ingress to this port and it backs the /health/live and /health/ready probes.
-ENV ASPNETCORE_HTTP_PORTS=8080
-EXPOSE 8080
+# Install app dependencies.
+COPY --chown=dotnet:dotnet DEFRA.BankHolidays/DEFRA.BankHolidays/*.csproj ./DEFRA.BankHolidays/
+RUN dotnet restore ./DEFRA.BankHolidays/DEFRA.BankHolidays.csproj
 
-# Chiseled images already default to a non-root user, but setting it explicitly documents the intent
-# and matches the Microsoft .NET container samples. $APP_UID is defined by the base image.
-USER $APP_UID
+# Copy in test and app code.
+COPY --chown=dotnet:dotnet DEFRA.BankHolidays/DEFRA.BankHolidays.Tests/ ./DEFRA.BankHolidays.Tests/
+COPY --chown=dotnet:dotnet DEFRA.BankHolidays/DEFRA.BankHolidays/ ./DEFRA.BankHolidays/
 
-# OCI metadata for image provenance/supply-chain scanning; no functional effect.
-LABEL org.opencontainers.image.title="DEFRA.BankHolidays" \
+# Build the app.
+RUN dotnet publish ./DEFRA.BankHolidays/ -c Release -o /home/dotnet/out
+
+# Expose the app on a defined port, configurable via a build argument. 8080 matches the
+# /health/live and /health/ready probes already configured for this app's Azure hosting.
+ARG PORT=8080
+ENV PORT=${PORT}
+EXPOSE ${PORT}
+
+# Exec form needs a script to interpolate ${PORT}; the script itself execs dotnet so it still
+#   receives signals directly rather than a shell.
+# Root-owned so the dotnet user can't modify its own startup script; switch back afterwards.
+USER root
+COPY --chown=root:root dev-entrypoint.sh ./
+RUN chmod +x ./dev-entrypoint.sh
+USER dotnet
+CMD ["./dev-entrypoint.sh"]
+
+# Production stage
+FROM defradigital/dotnetcore:$PARENT_VERSION AS production
+ARG PARENT_VERSION
+
+# Label the production image with the parent image it extends.
+LABEL uk.gov.defra.parent-image=defradigital/dotnetcore-development:${PARENT_VERSION} \
+      org.opencontainers.image.title="DEFRA.BankHolidays" \
       org.opencontainers.image.description="DEFRA UK bank holiday data API" \
-      org.opencontainers.image.vendor="DEFRA" \
-      org.opencontainers.image.base.name="mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra"
+      org.opencontainers.image.vendor="DEFRA"
 
-ENTRYPOINT ["dotnet", "DEFRA.BankHolidays.dll"]
+# Expose the app on a defined port, configurable via a build argument.
+ARG PORT=8080
+ENV ASPNETCORE_URLS=http://*:${PORT} \
+    ASPNETCORE_ENVIRONMENT=Production
+EXPOSE ${PORT}
+
+# Switch to root temporarily to lock down file permissions.
+USER root
+
+# Copy the compiled app from the development build stage, assigning root ownership to
+#   prevent modification by other users.
+COPY --from=development --chown=root:root /home/dotnet/out/ ./
+
+# Remove write permissions, then drop back to the unprivileged user.
+RUN chmod -R a-w /home/dotnet
+USER dotnet
+
+# Set the default command for production to run the compiled app.
+CMD ["dotnet", "DEFRA.BankHolidays.dll"]
+

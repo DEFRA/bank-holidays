@@ -11,6 +11,19 @@ TODO: Guide users through getting your code up and running on their own system. 
 # Build and Test
 TODO: Describe and show how to build your code and run the tests. 
 
+# Container
+
+The multi-stage [Dockerfile](./Dockerfile) follows the Defra .NET container
+standard ([defra-docker-dotnetcore](https://github.com/DEFRA/defra-docker-dotnetcore)):
+a `development` stage (`defradigital/dotnetcore-development`) restores, tests
+and publishes the app; a `production` stage (`defradigital/dotnetcore`) runs
+it as the non-root `dotnet` user with write permissions removed. It listens
+on HTTP 8080.
+
+```powershell
+docker build --target production -t bank-holidays:local .
+```
+
 # Contribute
 TODO: Explain how other users and developers can contribute to make your code better. 
 

@@ -1,7 +1,6 @@
 **/bin/
 **/obj/
 **/TestResults/
-DEFRA.BankHolidays/DEFRA.BankHolidays.Tests/
 .git/
 .vs/
 .github/
