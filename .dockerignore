@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.git
+**/*.user
+**/TestResults/
+Dockerfile
+.dockerignore
+Database/
+docs/
+infra/
+reports/
+*.log
+*.md

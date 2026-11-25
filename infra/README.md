@@ -70,7 +70,7 @@ Application Insights connection string, `OTEL_SERVICE_NAME=bank-holidays`, `Azur
 
 1. Foundation: `az deployment group what-if` then `create` with `main.bicep`; capture outputs.
 2. Owner bootstrap from an approved private-network path:
-   1. Build and push the image to ACR (**this repository has no Dockerfile yet**; one is needed, listening on 8080).
+   1. Build and push the image to ACR (use the [Dockerfile](../Dockerfile) in the repository root with `--target production`; it listens on 8080).
    2. Run `entra/New-BankHolidaysEntraRegistration.ps1 -Apply`; use its tenant/client IDs as `entraTenantId`/`entraClientId`.
       Grant the scheduled job's identity with `entra/Grant-BankHolidaysRole.ps1`; assign operators in the portal.
    3. As the SQL Entra administrator, run `Grant-DatabaseAccess.sql` (identity name = output `managedIdentityName`).
