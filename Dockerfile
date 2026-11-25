@@ -54,11 +54,16 @@ LABEL uk.gov.defra.parent-image=defradigital/dotnetcore-development:${PARENT_VER
 # Expose the app on a defined port, configurable via a build argument.
 ARG PORT=8080
 ENV ASPNETCORE_URLS=http://*:${PORT} \
-    ASPNETCORE_ENVIRONMENT=Production
+    ASPNETCORE_ENVIRONMENT=Production \
+    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 EXPOSE ${PORT}
 
-# Switch to root temporarily to lock down file permissions.
+# Switch to root temporarily to install ICU and lock down file permissions.
 USER root
+
+# The production parent image is globalization-invariant and ships without ICU. The app uses
+#   the en-GB culture (request localization), which throws at start-up in invariant mode.
+RUN apk add --no-cache icu-libs icu-data-full
 
 # Copy the compiled app from the development build stage, assigning root ownership to
 #   prevent modification by other users.
