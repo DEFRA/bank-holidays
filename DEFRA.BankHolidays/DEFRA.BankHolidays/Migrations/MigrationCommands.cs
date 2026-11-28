@@ -1,5 +1,7 @@
-using System.Data.Entity.Migrations;
-using System.Data.Entity.Migrations.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using DEFRA.BankHolidays.DAL;
 
 namespace DEFRA.BankHolidays.Migrations
 {
@@ -13,7 +15,7 @@ namespace DEFRA.BankHolidays.Migrations
 
     /// <summary>
     /// Command-line utilities for pipelines and jobs: <c>--migrate</c> applies pending migrations and exits,
-    /// <c>--script &lt;path&gt;</c> writes the T-SQL for all migrations to a file and exits.
+    /// <c>--script &lt;path&gt;</c> writes the idempotent T-SQL for all migrations to a file and exits.
     /// </summary>
     internal static class MigrationCommands
     {
@@ -42,16 +44,17 @@ namespace DEFRA.BankHolidays.Migrations
 
         public static int Run(MigrationCommand command, string connectionString)
         {
-            var migrator = new DbMigrator(new Configuration(connectionString));
+            var options = new DbContextOptionsBuilder<HolidayContext>().UseSqlServer(connectionString).Options;
+            using var context = new HolidayContext(options);
 
             if (command.Action == MigrationAction.Migrate)
             {
-                migrator.Update();
+                context.Database.Migrate();
                 Console.WriteLine("Migrations applied.");
                 return 0;
             }
 
-            var script = new MigratorScriptingDecorator(migrator).ScriptUpdate(null, null);
+            var script = context.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
             File.WriteAllText(command.ScriptPath, script);
             Console.WriteLine($"Migration script written to {command.ScriptPath}.");
             return 0;

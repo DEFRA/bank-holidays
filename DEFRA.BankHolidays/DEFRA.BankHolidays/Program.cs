@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.Localization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using Newtonsoft.Json.Serialization;
@@ -46,7 +47,14 @@ if (command != null)
     }
 }
 
-builder.Services.AddControllersWithViews()
+builder.Services.AddRazorPages(options =>
+{
+    // Previous MVC default route served the home page at /Home and /Home/Index as well as /.
+    options.Conventions.AddPageRoute("/Index", "Home");
+    options.Conventions.AddPageRoute("/Index", "Home/Index");
+});
+
+builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
     {
         // Web API 2 serialised property names as declared (no camelCase); keep the JSON contract identical.
@@ -71,7 +79,7 @@ builder.Services.AddHttpClient(HomeController.SourceClientName, (services, clien
 });
 
 builder.Services.AddSingleton<RefreshGate>();
-builder.Services.AddScoped(_ => new HolidayContext(connectionString));
+builder.Services.AddDbContext<HolidayContext>(options => options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
 
 var telemetryConnectionString = TelemetrySettings.ResolveConnectionString(builder.Configuration);
 
@@ -170,10 +178,12 @@ app.UseAuthorization();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
 
+app.MapRazorPages();
 app.MapControllers();
+// Keeps the Refresh, Update and ManualRefresh POST URLs (/Home/<action>) used by scheduled jobs and the home page.
 app.MapControllerRoute(
     name: "Default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller}/{action}/{id?}");
 
 app.Run();
 

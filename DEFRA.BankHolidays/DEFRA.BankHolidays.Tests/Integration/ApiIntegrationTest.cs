@@ -51,7 +51,7 @@ namespace DEFRA.BankHolidays.Tests.Integration
         public async Task Anonymous_callers_can_read_all_holidays_with_the_declared_json_names()
         {
             using var factory = new AppFactory();
-            AppFactory.SeedMay2018Holiday(factory.Data);
+            factory.SeedMay2018Holiday();
             using var client = factory.CreateClient();
 
             var response = await client.GetAsync("/api/values");
@@ -81,7 +81,7 @@ namespace DEFRA.BankHolidays.Tests.Integration
         public async Task Anonymous_callers_can_check_a_date(string date, string expected)
         {
             using var factory = new AppFactory();
-            AppFactory.SeedMay2018Holiday(factory.Data);
+            factory.SeedMay2018Holiday();
             using var client = factory.CreateClient();
 
             var response = await client.GetAsync($"/api/values?date={date}");
@@ -94,7 +94,7 @@ namespace DEFRA.BankHolidays.Tests.Integration
         public async Task The_legacy_workingdays_route_used_by_existing_consumers_still_works()
         {
             using var factory = new AppFactory();
-            AppFactory.SeedMay2018Holiday(factory.Data);
+            factory.SeedMay2018Holiday();
             using var client = factory.CreateClient();
 
             var response = await client.GetAsync("/api/Values/workingdays?start=2018-05-25&end=2018-05-29");

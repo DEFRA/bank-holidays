@@ -31,7 +31,7 @@ The data layer uses the Microsoft.Data.SqlClient provider for Entity Framework 6
 | SQL authentication | `Server=<server>;Database=DEFRA.BankHolidays;User ID=<user>;Password=<from Key Vault>;MultipleActiveResultSets=True` |
 | Windows integrated (on-premises only) | `Data Source=<server>;Initial Catalog=DEFRA.BankHolidays;Integrated Security=True;MultipleActiveResultSets=True;TrustServerCertificate=True` |
 
-`Microsoft.Data.SqlClient` encrypts connections by default. Add `TrustServerCertificate=True` (or `Encrypt=False`) only where the server certificate is not trusted, such as LocalDB. The managed identity must be a database user with read/write permission on the bank holiday tables (and, for the migration job, permission to create tables). The EF6 retry strategy for transient Azure SQL errors is enabled.
+`Microsoft.Data.SqlClient` encrypts connections by default. Add `TrustServerCertificate=True` (or `Encrypt=False`) only where the server certificate is not trusted, such as LocalDB. The managed identity must be a database user with read/write permission on the bank holiday tables (and, for the migration job, permission to create tables). The EF Core SQL Server retry strategy for transient Azure SQL errors is enabled. Databases created by the previous EF6 model must run `Database/002_EfCoreBaseline.sql` once before the first EF Core migration run.
 
 The database initialiser is disabled: the app never creates or changes the schema by itself.
 

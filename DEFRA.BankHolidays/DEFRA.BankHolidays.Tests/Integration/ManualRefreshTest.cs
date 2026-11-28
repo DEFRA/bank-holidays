@@ -29,7 +29,7 @@ namespace DEFRA.BankHolidays.Tests.Integration
         public async Task Anonymous_user_can_refresh_and_read_back_source_data_with_entra_configured()
         {
             using var factory = new AppFactory(environment: "Production", entraConfigured: true);
-            AppFactory.SeedMay2018Holiday(factory.Data);
+            factory.SeedMay2018Holiday();
             using var client = factory.CreateClient();
             using var form = await RefreshForm(client);
 
@@ -68,7 +68,7 @@ namespace DEFRA.BankHolidays.Tests.Integration
         public async Task Source_failure_preserves_existing_data_and_returns_generic_error(bool invalidJson)
         {
             using var factory = new AppFactory(entraConfigured: true);
-            AppFactory.SeedMay2018Holiday(factory.Data);
+            factory.SeedMay2018Holiday();
             factory.Upstream = invalidJson
                 ? () => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("invalid JSON") }
                 : () => throw new HttpRequestException("secret-upstream");

@@ -33,13 +33,6 @@ namespace DEFRA.BankHolidays.Controllers
             this.logger = logger;
         }
 
-        public IActionResult Index()
-        {
-            ViewBag.Title = "Bank Holidays";
-
-            return View();
-        }
-
         [HttpPost]
         [Authorize(Policy = AuthorizationPolicies.Refresh)]
         public IActionResult Refresh(string data)
@@ -126,11 +119,6 @@ namespace DEFRA.BankHolidays.Controllers
             }
 
             return StatusCode(200);
-        }
-
-        public IActionResult Error()
-        {
-            return View();
         }
 
         private void Update(string data)

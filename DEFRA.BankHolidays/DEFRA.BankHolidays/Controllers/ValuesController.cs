@@ -1,7 +1,7 @@
 using DEFRA.BankHolidays.DAL;
 using DEFRA.BankHolidays.Models;
 using Microsoft.AspNetCore.Mvc;
-using System.Data.Entity;
+using Microsoft.EntityFrameworkCore;
 
 namespace DEFRA.BankHolidays.Controllers
 {
@@ -53,14 +53,20 @@ namespace DEFRA.BankHolidays.Controllers
         [NonAction]
         public Holidays GetHolidays()
         {
-            return db.Holidays.Include(x => x.EnglandWales.Events).Include(x => x.NorthernIreland.Events).Include(x => x.Scotland.Events).FirstOrDefault();
+            return db.Holidays
+                .AsNoTracking()
+                .Include(x => x.EnglandWales.Events)
+                .Include(x => x.NorthernIreland.Events)
+                .Include(x => x.Scotland.Events)
+                .AsSplitQuery()
+                .FirstOrDefault();
         }
 
         [NonAction]
         public int WorkingDays(DateTime start, DateTime end, bool includeFirstDate = false)
         {
             var total_days = 0;
-            var holidays = db.Holidays.Include(x => x.EnglandWales.Events).FirstOrDefault()?.EnglandWales?.Events.Select(x => x.Date).ToList();
+            var holidays = db.Holidays.AsNoTracking().Include(x => x.EnglandWales.Events).FirstOrDefault()?.EnglandWales?.Events.Select(x => x.Date).ToList();
 
             if (holidays != null)
             {

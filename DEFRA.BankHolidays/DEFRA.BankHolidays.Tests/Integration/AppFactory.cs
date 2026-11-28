@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Moq;
@@ -13,11 +15,12 @@ using Moq;
 namespace DEFRA.BankHolidays.Tests.Integration
 {
     // Runs the real application pipeline (routing, formatters, authorization, health checks) with the
-    // database, upstream feed and token validation replaced by test doubles.
+    // database (in-memory SQLite), upstream feed and token validation replaced by test doubles.
     internal sealed class AppFactory : WebApplicationFactory<Program>
     {
         private readonly string environment;
         private readonly Dictionary<string, string> originalEnvironmentVariables = new();
+        private readonly TestDb db = new();
 
         public AppFactory(string environment = "Development", bool entraConfigured = false, bool? allowAnonymousWrites = null)
         {
@@ -30,12 +33,12 @@ namespace DEFRA.BankHolidays.Tests.Integration
             Set("AzureAd__ClientId", entraConfigured ? "00000000-0000-0000-0000-000000000002" : "");
             Set("Authentication__AllowAnonymousWritesInDevelopment", allowAnonymousWrites?.ToString() ?? "");
 
-            Data = new List<Holidays>();
             Upstream = () => new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(Controllers.HomeControllerTest.SampleJson) };
             Probe = Mock.Of<IDatabaseProbe>();
         }
 
-        public List<Holidays> Data { get; }
+        // What is currently persisted, read fresh on every access.
+        public List<Holidays> Data => db.Data;
 
         public Func<HttpResponseMessage> Upstream { get; set; }
 
@@ -53,8 +56,12 @@ namespace DEFRA.BankHolidays.Tests.Integration
 
             builder.ConfigureTestServices(services =>
             {
+                // EF Core 9+ keeps the provider setup in this registration; leaving it would register SQL Server alongside SQLite.
+                services.RemoveAll<IDbContextOptionsConfiguration<HolidayContext>>();
+                services.RemoveAll<DbContextOptions<HolidayContext>>();
+                services.RemoveAll<DbContextOptions>();
                 services.RemoveAll<HolidayContext>();
-                services.AddScoped(_ => MockDb.CreateContext(MockDb.CreateHolidaysSet(Data), Data).Object);
+                services.AddDbContext<HolidayContext>(options => options.UseSqlite(db.Connection));
 
                 services.RemoveAll<IDatabaseProbe>();
                 services.AddSingleton(Probe);
@@ -76,15 +83,20 @@ namespace DEFRA.BankHolidays.Tests.Integration
         {
             base.Dispose(disposing);
 
+            if (disposing)
+            {
+                db.Dispose();
+            }
+
             foreach (var item in originalEnvironmentVariables)
             {
                 Environment.SetEnvironmentVariable(item.Key, item.Value);
             }
         }
 
-        public static void SeedMay2018Holiday(List<Holidays> data)
+        public void SeedMay2018Holiday()
         {
-            data.Add(new Holidays
+            db.Add(new Holidays
             {
                 EnglandWales = new EnglandWales
                 {

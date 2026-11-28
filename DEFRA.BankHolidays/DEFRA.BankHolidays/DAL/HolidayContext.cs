@@ -1,26 +1,11 @@
 using DEFRA.BankHolidays.Models;
-using Microsoft.Data.SqlClient;
-using System.Data.Entity;
-using System.Data.Entity.ModelConfiguration.Conventions;
+using Microsoft.EntityFrameworkCore;
 
 namespace DEFRA.BankHolidays.DAL
 {
-    [DbConfigurationType(typeof(HolidayDbConfiguration))]
     public class HolidayContext : DbContext
     {
-        static HolidayContext()
-        {
-            // The schema is applied explicitly (migration utilities / deployment pipeline), never implicitly at runtime.
-            Database.SetInitializer<HolidayContext>(null);
-        }
-
-        // Required by DbMigrator, which creates the context itself; the migration configuration supplies the real connection.
-        public HolidayContext() : base("HolidayContext")
-        {
-        }
-
-        // The connection is created explicitly so the Microsoft.Data.SqlClient provider is always used.
-        public HolidayContext(string connectionString) : base(new SqlConnection(connectionString), true)
+        public HolidayContext(DbContextOptions<HolidayContext> options) : base(options)
         {
         }
 
@@ -33,19 +18,51 @@ namespace DEFRA.BankHolidays.DAL
         /// </summary>
         public virtual void ReplaceHolidays(Holidays holidays)
         {
-            Set<Event>().RemoveRange(Set<Event>());
-            Set<EnglandWales>().RemoveRange(Set<EnglandWales>());
-            Set<Scotland>().RemoveRange(Set<Scotland>());
-            Set<NorthernIreland>().RemoveRange(Set<NorthernIreland>());
-            Holidays.RemoveRange(Holidays);
+            Set<Event>().RemoveRange(Set<Event>().ToList());
+            Set<EnglandWales>().RemoveRange(Set<EnglandWales>().ToList());
+            Set<Scotland>().RemoveRange(Set<Scotland>().ToList());
+            Set<NorthernIreland>().RemoveRange(Set<NorthernIreland>().ToList());
+            Holidays.RemoveRange(Holidays.ToList());
             Holidays.Add(holidays);
 
             SaveChanges();
         }
 
-        protected override void OnModelCreating(DbModelBuilder modelBuilder)
+        // Table and column names match the schema created by the previous EF6 model (singular table names,
+        // <Navigation>_Id foreign key columns, datetime for dates), so existing databases keep working unchanged.
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Conventions.Remove<PluralizingTableNameConvention>();
+            modelBuilder.Entity<Holidays>(entity =>
+            {
+                entity.ToTable("Holidays");
+                entity.HasOne(x => x.EnglandWales).WithMany().HasForeignKey("EnglandWales_Id").OnDelete(DeleteBehavior.ClientSetNull);
+                entity.HasOne(x => x.NorthernIreland).WithMany().HasForeignKey("NorthernIreland_Id").OnDelete(DeleteBehavior.ClientSetNull);
+                entity.HasOne(x => x.Scotland).WithMany().HasForeignKey("Scotland_Id").OnDelete(DeleteBehavior.ClientSetNull);
+            });
+
+            modelBuilder.Entity<EnglandWales>(entity =>
+            {
+                entity.ToTable("EnglandWales");
+                entity.HasMany(x => x.Events).WithOne().HasForeignKey("EnglandWales_Id").OnDelete(DeleteBehavior.ClientSetNull);
+            });
+
+            modelBuilder.Entity<Scotland>(entity =>
+            {
+                entity.ToTable("Scotland");
+                entity.HasMany(x => x.Events).WithOne().HasForeignKey("Scotland_Id").OnDelete(DeleteBehavior.ClientSetNull);
+            });
+
+            modelBuilder.Entity<NorthernIreland>(entity =>
+            {
+                entity.ToTable("NorthernIreland");
+                entity.HasMany(x => x.Events).WithOne().HasForeignKey("NorthernIreland_Id").OnDelete(DeleteBehavior.ClientSetNull);
+            });
+
+            modelBuilder.Entity<Event>(entity =>
+            {
+                entity.ToTable("Event");
+                entity.Property(x => x.Date).HasColumnType("datetime");
+            });
         }
     }
 }

@@ -1,45 +1,39 @@
 using DEFRA.BankHolidays.Controllers;
-using DEFRA.BankHolidays.DAL;
 using DEFRA.BankHolidays.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Moq;
-using System.Data.Entity;
 
 namespace DEFRA.BankHolidays.Tests.Controllers
 {
     [TestClass]
     public class ValuesControllerTest
     {
-        Mock<HolidayContext> context;
-        Mock<DbSet<Holidays>> holidays;
-        List<Holidays> holidaysData;
+        TestDb db;
         ValuesController controller;
 
         [TestInitialize]
         public void Initialize()
         {
-            holidaysData = new List<Holidays>
+            db = new TestDb();
+            db.Add(new Holidays
             {
-                new Holidays
+                EnglandWales = new EnglandWales
                 {
-                    EnglandWales = new EnglandWales
+                    Events = new List<Event>
                     {
-                        Events = new List<Event>
+                        new Event
                         {
-                            new Event
-                            {
-                                Date = new DateTime(2018, 5, 28)
-                            }
+                            Date = new DateTime(2018, 5, 28)
                         }
                     }
                 }
-            };
+            });
 
-            holidays = MockDb.CreateHolidaysSet(holidaysData);
-            context = MockDb.CreateContext(holidays);
-            controller = new ValuesController(context.Object);
+            controller = new ValuesController(db.NewContext());
         }
+
+        [TestCleanup]
+        public void Cleanup() => db.Dispose();
 
         [TestMethod]
         public void Test_IsBankHoliday_returns_true_when_bank_holiday()
